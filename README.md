@@ -88,10 +88,3 @@ The application uses **multiple MySQL database connections** to separate country
 3. Make your changes
 4. Add tests
 5. Submit a pull request
-
-## 📊 Performance Benchmarks
-
-- **Small datasets** (< 1,000 records): < 50ms response time
-- **Medium datasets** (1,000-100,000 records): < 200ms response time
-- **Large datasets** (> 100,000 records): < 500ms response time
-- **Cached results**: < 10ms response time
