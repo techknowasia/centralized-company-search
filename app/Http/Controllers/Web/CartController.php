@@ -1,0 +1,109 @@
+<?php
+
+namespace App\Http\Controllers\Web;
+
+use App\Http\Controllers\Controller;
+use App\Services\CartService;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\View\View;
+
+class CartController extends Controller
+{
+    protected CartService $cartService;
+
+    public function __construct(CartService $cartService)
+    {
+        $this->cartService = $cartService;
+    }
+
+    public function index(): View
+    {
+        $cartItems = $this->cartService->getCartItems();
+        $total = $this->cartService->getTotal();
+
+        return view('cart.index', [
+            'cartItems' => $cartItems,
+            'total' => $total
+        ]);
+    }
+
+    public function add(Request $request): JsonResponse
+    {
+        $request->validate([
+            'company_id' => 'required|integer',
+            'report_id' => 'required|integer',
+            'country' => 'required|string|in:sg,mx',
+            'quantity' => 'integer|min:1|max:10'
+        ]);
+
+        try {
+            $cartItem = $this->cartService->addToCart(
+                $request->company_id,
+                $request->report_id,
+                $request->country,
+                $request->quantity ?? 1
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Report added to cart',
+                'cartItem' => $cartItem,
+                'cartCount' => $this->cartService->getCartCount(),
+                'cartTotal' => $this->cartService->getTotal()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to add to cart: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    public function remove(string $cartItemId): JsonResponse
+    {
+        $this->cartService->removeFromCart($cartItemId);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Item removed from cart',
+            'cartCount' => $this->cartService->getCartCount(),
+            'cartTotal' => $this->cartService->getTotal()
+        ]);
+    }
+
+    public function update(Request $request, string $cartItemId): JsonResponse
+    {
+        $request->validate([
+            'quantity' => 'required|integer|min:1|max:10'
+        ]);
+
+        $this->cartService->updateCartItem($cartItemId, $request->quantity);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cart updated',
+            'cartCount' => $this->cartService->getCartCount(),
+            'cartTotal' => $this->cartService->getTotal()
+        ]);
+    }
+
+    public function clear(): JsonResponse
+    {
+        $this->cartService->clearCart();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cart cleared',
+            'cartCount' => 0,
+            'cartTotal' => 0
+        ]);
+    }
+
+    public function count(): JsonResponse
+    {
+        return response()->json([
+            'count' => $this->cartService->getCartCount()
+        ]);
+    }
+}
