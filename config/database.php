@@ -16,7 +16,7 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'sqlite'),
+    'default' => env('DB_CONNECTION', 'mysql'),
 
     /*
     |--------------------------------------------------------------------------
@@ -31,18 +31,7 @@ return [
 
     'connections' => [
 
-        'sqlite' => [
-            'driver' => 'sqlite',
-            'url' => env('DB_URL'),
-            'database' => env('DB_DATABASE', database_path('database.sqlite')),
-            'prefix' => '',
-            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            'busy_timeout' => null,
-            'journal_mode' => null,
-            'synchronous' => null,
-            'transaction_mode' => 'DEFERRED',
-        ],
-
+        // Default Laravel Database (for users, sessions, etc.)
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
@@ -61,6 +50,60 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+        ],
+
+        // Singapore Database Connection
+        'companies_house_sg' => [
+            'driver' => 'mysql',
+            'url' => env('DB_SG_URL'),
+            'host' => env('DB_SG_HOST', '127.0.0.1'),
+            'port' => env('DB_SG_PORT', '3306'),
+            'database' => env('DB_SG_DATABASE', 'companies_house_sg'),
+            'username' => env('DB_SG_USERNAME', 'root'),
+            'password' => env('DB_SG_PASSWORD', 'alinaqvi'),
+            'unix_socket' => env('DB_SG_SOCKET', ''),
+            'charset' => env('DB_SG_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_SG_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
+        // Mexico Database Connection
+        'companies_house_mx' => [
+            'driver' => 'mysql',
+            'url' => env('DB_MX_URL'),
+            'host' => env('DB_MX_HOST', '127.0.0.1'),
+            'port' => env('DB_MX_PORT', '3306'),
+            'database' => env('DB_MX_DATABASE', 'companies_house_mx'),
+            'username' => env('DB_MX_USERNAME', 'root'),
+            'password' => env('DB_MX_PASSWORD', 'alinaqvi'),
+            'unix_socket' => env('DB_MX_SOCKET', ''),
+            'charset' => env('DB_MX_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_MX_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
+        'sqlite' => [
+            'driver' => 'sqlite',
+            'url' => env('DB_URL'),
+            'database' => env('DB_DATABASE', database_path('database.sqlite')),
+            'prefix' => '',
+            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
+            'busy_timeout' => null,
+            'journal_mode' => null,
+            'synchronous' => null,
+            'transaction_mode' => 'DEFERRED',
         ],
 
         'mariadb' => [
