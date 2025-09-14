@@ -65,20 +65,19 @@
                         </div>
                     </div>
 
-                    <!-- Country Filter -->
-                    <div class="flex space-x-4">
+                    <!-- Country Filter - Now Dynamic -->
+                    <div class="flex flex-wrap gap-4">
                         <label class="flex items-center">
                             <input type="radio" name="country" value="" {{ request('country') == '' ? 'checked' : '' }} class="mr-2">
                             <span class="text-gray-700">All Countries</span>
                         </label>
-                        <label class="flex items-center">
-                            <input type="radio" name="country" value="sg" {{ request('country') == 'sg' ? 'checked' : '' }} class="mr-2">
-                            <span class="text-gray-700">🇸🇬 Singapore</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="radio" name="country" value="mx" {{ request('country') == 'mx' ? 'checked' : '' }} class="mr-2">
-                            <span class="text-gray-700">🇲🇽 Mexico</span>
-                        </label>
+                        
+                        @foreach($countries as $code => $config)
+                            <label class="flex items-center">
+                                <input type="radio" name="country" value="{{ $code }}" {{ request('country') == $code ? 'checked' : '' }} class="mr-2">
+                                <span class="text-gray-700">{{ $config['flag'] }} {{ $config['name'] }}</span>
+                            </label>
+                        @endforeach
                     </div>
                 </form>
 

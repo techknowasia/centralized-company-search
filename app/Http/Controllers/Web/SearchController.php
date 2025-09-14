@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Services\CompanySearchService;
+use App\Services\CountryService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
@@ -11,15 +12,21 @@ use Illuminate\View\View;
 class SearchController extends Controller
 {
     protected CompanySearchService $searchService;
+    protected CountryService $countryService;
 
-    public function __construct(CompanySearchService $searchService)
+    public function __construct(CompanySearchService $searchService, CountryService $countryService)
     {
         $this->searchService = $searchService;
+        $this->countryService = $countryService;
     }
 
     public function index(): View
     {
-        return view('search.index');
+        $countries = $this->countryService->getAllCountries();
+        
+        return view('search.index', [
+            'countries' => $countries
+        ]);
     }
 
     public function search(Request $request): View
@@ -34,11 +41,8 @@ class SearchController extends Controller
 
         if (!empty($query)) {
             try {
-                // Get search results
-                $searchResults = $this->searchService->searchAll($query, $country, 1000); // Get more for pagination
+                $searchResults = $this->searchService->searchAll($query, $country, 1000);
                 $totalResults = $searchResults->count();
-                
-                // Manual pagination
                 $companies = $searchResults->forPage($page, $perPage);
             } catch (\Exception $e) {
                 \Log::error('Search error: ' . $e->getMessage());
@@ -54,7 +58,8 @@ class SearchController extends Controller
             'currentPage' => (int) $page,
             'perPage' => $perPage,
             'totalResults' => $totalResults,
-            'totalPages' => ceil($totalResults / $perPage)
+            'totalPages' => ceil($totalResults / $perPage),
+            'countries' => $this->countryService->getAllCountries()
         ]);
     }
 
@@ -78,9 +83,8 @@ class SearchController extends Controller
         }
 
         try {
-            $suggestions = $this->searchService->getSuggestions($query, $perPage * 3); // Get more for pagination
+            $suggestions = $this->searchService->getSuggestions($query, $perPage * 3);
             
-            // Manual pagination
             $total = $suggestions->count();
             $lastPage = ceil($total / $perPage);
             $paginatedSuggestions = $suggestions->forPage($page, $perPage);

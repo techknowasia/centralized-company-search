@@ -13,11 +13,16 @@ class CompanySearchService
 {
     protected CompanyRepositorySG $sgRepository;
     protected CompanyRepositoryMX $mxRepository;
+    protected CountryService $countryService;
 
-    public function __construct(CompanyRepositorySG $sgRepository, CompanyRepositoryMX $mxRepository)
-    {
+    public function __construct(
+        CompanyRepositorySG $sgRepository, 
+        CompanyRepositoryMX $mxRepository,
+        CountryService $countryService
+    ) {
         $this->sgRepository = $sgRepository;
         $this->mxRepository = $mxRepository;
+        $this->countryService = $countryService;
     }
 
     public function searchAll(string $query, ?string $country = null, int $limit = 50): Collection
@@ -25,28 +30,15 @@ class CompanySearchService
         $results = collect();
 
         try {
-            // Search Singapore database
-            if (!$country || $country === 'sg') {
-                $sgResults = $this->searchSingapore($query, $limit);
-                $results = $results->merge($sgResults);
+            $countriesToSearch = $country ? [$country] : $this->countryService->getAvailableCountries();
+            
+            foreach ($countriesToSearch as $countryCode) {
+                $countryResults = $this->searchCountry($countryCode, $query, $limit);
+                $results = $results->merge($countryResults);
             }
 
-            // Search Mexico database
-            if (!$country || $country === 'mx') {
-                $mxResults = $this->searchMexico($query, $limit);
-                $results = $results->merge($mxResults);
-            }
-
-            // Sort by relevance (exact matches first, then partial matches)
-            return $results->sortByDesc(function ($company) use ($query) {
-                $name = strtolower($company->name);
-                $searchQuery = strtolower($query);
-                
-                if ($name === $searchQuery) return 100;
-                if (str_starts_with($name, $searchQuery)) return 90;
-                if (str_contains($name, $searchQuery)) return 80;
-                return 70;
-            });
+            // Sort by relevance
+            return $this->sortByRelevance($results, $query);
 
         } catch (\Exception $e) {
             \Log::error('Search error: ' . $e->getMessage());
@@ -62,24 +54,12 @@ class CompanySearchService
             $results = collect();
 
             try {
-                // Get suggestions from Singapore
-                $sgSuggestions = $this->getSingaporeSuggestions($query, $limit);
-                $results = $results->merge($sgSuggestions);
+                foreach ($this->countryService->getAvailableCountries() as $countryCode) {
+                    $suggestions = $this->getCountrySuggestions($countryCode, $query, $limit);
+                    $results = $results->merge($suggestions);
+                }
 
-                // Get suggestions from Mexico
-                $mxSuggestions = $this->getMexicoSuggestions($query, $limit);
-                $results = $results->merge($mxSuggestions);
-
-                // Sort by relevance and limit results
-                return $results->sortByDesc(function ($company) use ($query) {
-                    $name = strtolower($company->name);
-                    $searchQuery = strtolower($query);
-                    
-                    if ($name === $searchQuery) return 100;
-                    if (str_starts_with($name, $searchQuery)) return 90;
-                    if (str_contains($name, $searchQuery)) return 80;
-                    return 70;
-                })->take($limit * 2); // Get more for pagination
+                return $this->sortByRelevance($results, $query)->take($limit * 2);
 
             } catch (\Exception $e) {
                 \Log::error('Suggestions error: ' . $e->getMessage());
@@ -91,142 +71,119 @@ class CompanySearchService
     public function getCompanyReports(string $country, int $companyId): Collection
     {
         try {
-            if ($country === 'sg') {
-                return $this->getSingaporeReports($companyId);
-            } elseif ($country === 'mx') {
-                return $this->getMexicoReports($companyId);
+            $countryConfig = $this->countryService->getCountryConfig($country);
+            
+            if (!$countryConfig) {
+                throw new \Exception("Country {$country} not configured");
             }
+
+            if ($this->countryService->hasDirectReports($country)) {
+                return $this->getDirectReports($country, $companyId);
+            } else {
+                return $this->getStateBasedReports($country, $companyId);
+            }
+
         } catch (\Exception $e) {
             \Log::error('Get reports error: ' . $e->getMessage());
+            return collect();
         }
-
-        return collect();
     }
 
-    private function searchSingapore(string $query, int $limit): Collection
+    private function searchCountry(string $countryCode, string $query, int $limit): Collection
     {
         try {
-            $results = DB::connection('companies_house_sg')
+            $connection = $this->countryService->getCountryConnection($countryCode);
+            $countryName = $this->countryService->getCountryName($countryCode);
+            
+            $results = DB::connection($connection)
                 ->table('companies')
                 ->where('name', 'LIKE', "%{$query}%")
                 ->orWhere('registration_number', 'LIKE', "%{$query}%")
                 ->limit($limit)
                 ->get();
 
-            return $results->map(function ($company) {
-                $company->country = 'sg';
-                $company->country_name = 'Singapore';
+            return $results->map(function ($company) use ($countryCode, $countryName) {
+                $company->country = $countryCode;
+                $company->country_name = $countryName;
                 return $company;
             });
+
         } catch (\Exception $e) {
-            \Log::error('Singapore search error: ' . $e->getMessage());
+            \Log::error("Search error for {$countryCode}: " . $e->getMessage());
             return collect();
         }
     }
 
-    private function searchMexico(string $query, int $limit): Collection
+    private function getCountrySuggestions(string $countryCode, string $query, int $limit): Collection
     {
         try {
-            $results = DB::connection('companies_house_mx')
-                ->table('companies')
-                ->leftJoin('states', 'companies.state_id', '=', 'states.id')
-                ->select('companies.*', 'states.name as state_name')
-                ->where('companies.name', 'LIKE', "%{$query}%")
-                ->limit($limit)
-                ->get();
-
-            return $results->map(function ($company) {
-                $company->country = 'mx';
-                $company->country_name = 'Mexico';
-                return $company;
-            });
-        } catch (\Exception $e) {
-            \Log::error('Mexico search error: ' . $e->getMessage());
-            return collect();
-        }
-    }
-
-    private function getSingaporeSuggestions(string $query, int $limit): Collection
-    {
-        try {
-            $results = DB::connection('companies_house_sg')
+            $connection = $this->countryService->getCountryConnection($countryCode);
+            $countryName = $this->countryService->getCountryName($countryCode);
+            
+            $results = DB::connection($connection)
                 ->table('companies')
                 ->where('name', 'LIKE', "%{$query}%")
                 ->limit($limit)
                 ->get();
 
-            return $results->map(function ($company) {
-                $company->country = 'sg';
-                $company->country_name = 'Singapore';
+            return $results->map(function ($company) use ($countryCode, $countryName) {
+                $company->country = $countryCode;
+                $company->country_name = $countryName;
                 return $company;
             });
+
         } catch (\Exception $e) {
-            \Log::error('Singapore suggestions error: ' . $e->getMessage());
+            \Log::error("Suggestions error for {$countryCode}: " . $e->getMessage());
             return collect();
         }
     }
 
-    private function getMexicoSuggestions(string $query, int $limit): Collection
+    private function getDirectReports(string $country, int $companyId): Collection
     {
-        try {
-            $results = DB::connection('companies_house_mx')
-                ->table('companies')
-                ->leftJoin('states', 'companies.state_id', '=', 'states.id')
-                ->select('companies.*', 'states.name as state_name')
-                ->where('companies.name', 'LIKE', "%{$query}%")
-                ->limit($limit)
-                ->get();
-
-            return $results->map(function ($company) {
-                $company->country = 'mx';
-                $company->country_name = 'Mexico';
-                return $company;
-            });
-        } catch (\Exception $e) {
-            \Log::error('Mexico suggestions error: ' . $e->getMessage());
-            return collect();
-        }
+        $connection = $this->countryService->getCountryConnection($country);
+        
+        return DB::connection($connection)
+            ->table('reports')
+            ->where('status', 1)
+            ->orderBy('order')
+            ->get();
     }
 
-    private function getSingaporeReports(int $companyId): Collection
+    private function getStateBasedReports(string $country, int $companyId): Collection
     {
-        try {
-            return DB::connection('companies_house_sg')
-                ->table('reports')
-                ->where('is_active', 1)
-                ->orderBy('order')
-                ->get();
-        } catch (\Exception $e) {
-            \Log::error('Singapore reports error: ' . $e->getMessage());
+        $connection = $this->countryService->getCountryConnection($country);
+        
+        // Get company's state_id
+        $company = DB::connection($connection)
+            ->table('companies')
+            ->where('id', $companyId)
+            ->first();
+
+        if (!$company) {
             return collect();
         }
+
+        // Get reports available for this state
+        return DB::connection($connection)
+            ->table('report_state')
+            ->join('reports', 'report_state.report_id', '=', 'reports.id')
+            ->select('reports.*', 'report_state.amount')
+            ->where('report_state.state_id', $company->state_id)
+            ->where('reports.status', 1)
+            ->orderBy('reports.order')
+            ->get();
     }
 
-    private function getMexicoReports(int $companyId): Collection
+    private function sortByRelevance(Collection $results, string $query): Collection
     {
-        try {
-            // Get company's state_id
-            $company = DB::connection('companies_house_mx')
-                ->table('companies')
-                ->where('id', $companyId)
-                ->first();
-
-            if (!$company) {
-                return collect();
-            }
-
-            // Get reports available for this state
-            return DB::connection('companies_house_mx')
-                ->table('report_state')
-                ->join('reports', 'report_state.report_id', '=', 'reports.id')
-                ->select('reports.*', 'report_state.amount')
-                ->where('report_state.state_id', $company->state_id)
-                ->where('reports.status', 1)
-                ->orderBy('reports.order')
-                ->get();
-        } catch (\Exception $e) {
-            \Log::error('Mexico reports error: ' . $e->getMessage());
-            return collect();
-        }
+        return $results->sortByDesc(function ($company) use ($query) {
+            $name = strtolower($company->name);
+            $searchQuery = strtolower($query);
+            
+            if ($name === $searchQuery) return 100;
+            if (str_starts_with($name, $searchQuery)) return 90;
+            if (str_contains($name, $searchQuery)) return 80;
+            return 70;
+        });
     }
 }
