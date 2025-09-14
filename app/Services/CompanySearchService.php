@@ -146,7 +146,7 @@ class CompanySearchService
         
         return DB::connection($connection)
             ->table('reports')
-            ->where('status', 1)
+            ->where('is_active', 1)
             ->orderBy('order')
             ->get();
     }
