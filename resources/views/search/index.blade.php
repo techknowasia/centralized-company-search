@@ -120,7 +120,7 @@ document.getElementById('search-input').addEventListener('input', function(e) {
     }
     
     // Hide suggestions if query is too short
-    if (query.length < 2) {
+    if (query.length < 1) {
         hideSuggestions();
         return;
     }
