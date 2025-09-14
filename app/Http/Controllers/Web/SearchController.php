@@ -87,7 +87,7 @@ class SearchController extends Controller
             
             $total = $suggestions->count();
             $lastPage = ceil($total / $perPage);
-            $paginatedSuggestions = $suggestions->forPage($page, $perPage);
+            $paginatedSuggestions = $suggestions->forPage($page, $perPage)->values();
             
             return response()->json([
                 'success' => true,

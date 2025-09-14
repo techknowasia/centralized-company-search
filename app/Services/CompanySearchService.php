@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Repositories\Interfaces\CompanyRepositoryInterface;
 use App\Repositories\SG\CompanyRepositorySG;
 use App\Repositories\MX\CompanyRepositoryMX;
+use App\Services\CountryService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -124,7 +125,8 @@ class CompanySearchService
                 ->table('companies')
                 ->where('name', 'LIKE', "%{$query}%")
                 ->limit($limit)
-                ->get();
+                ->get()
+                ->values();
 
             return $results->map(function ($company) use ($countryCode, $countryName) {
                 $company->country = $countryCode;
