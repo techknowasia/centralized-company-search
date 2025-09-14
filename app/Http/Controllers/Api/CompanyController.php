@@ -18,6 +18,12 @@ class CompanyController extends Controller
         $this->searchService = $searchService;
     }
 
+    public function index(Request $request): JsonResponse
+    {
+        // Get all companies (paginated)
+        return response()->json(['message' => 'Get all companies endpoint']);
+    }
+
     public function show(Request $request, int $id): JsonResponse
     {
         $country = $request->query('country', 'sg');
@@ -65,19 +71,16 @@ class CompanyController extends Controller
 
     public function getSingaporeCompanies(Request $request): JsonResponse
     {
-        // Implementation for Singapore-specific companies
         return response()->json(['message' => 'Singapore companies endpoint']);
     }
 
     public function getMexicoCompanies(Request $request): JsonResponse
     {
-        // Implementation for Mexico-specific companies
         return response()->json(['message' => 'Mexico companies endpoint']);
     }
 
     public function getMexicoStates(): JsonResponse
     {
-        // Implementation for Mexico states
         return response()->json(['message' => 'Mexico states endpoint']);
     }
 }
