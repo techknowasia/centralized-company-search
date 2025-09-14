@@ -3,9 +3,9 @@
 @section('title', 'Search Companies')
 
 @section('content')
-<div class="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900">
+<div class="min-h-screen bg-gray-100">
     <!-- Background Pattern -->
-    <div class="absolute inset-0 opacity-10">
+    <div class="absolute opacity-10">
         <div class="absolute inset-0" style="background-image: radial-gradient(circle at 25px 25px, rgba(255,255,255,0.2) 2px, transparent 0), radial-gradient(circle at 75px 75px, rgba(255,255,255,0.2) 2px, transparent 0); background-size: 100px 100px;"></div>
     </div>
 
@@ -13,12 +13,12 @@
         <div class="w-full max-w-4xl">
             <!-- Instructions -->
             <div class="text-center mb-8">
-                <div class="text-white text-lg mb-4">
-                    <span class="bg-blue-600 px-3 py-1 rounded-full text-sm font-semibold mr-2">②</span>
+                <div class="text-gray-900 text-lg mb-4">
+                    <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold mr-2">1</span>
                     Buy the latest report on shareholders, directors and capital structure
                 </div>
-                <div class="text-white text-lg">
-                    <span class="bg-blue-600 px-3 py-1 rounded-full text-sm font-semibold mr-2">③</span>
+                <div class="text-gray-900 text-lg">
+                    <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold mr-2">2</span>
                     Receive the report directly in your inbox
                 </div>
             </div>
@@ -46,8 +46,21 @@
                         
                         <!-- Search Suggestions Dropdown -->
                         <div id="suggestions-dropdown" class="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg mt-1 z-50 hidden">
-                            <div id="suggestions-list" class="max-h-60 overflow-y-auto">
+                            <div id="suggestions-list" class="max-h-80 overflow-y-auto">
                                 <!-- Suggestions will be populated here -->
+                            </div>
+                            
+                            <!-- Pagination for suggestions -->
+                            <div id="suggestions-pagination" class="border-t border-gray-200 p-3 hidden">
+                                <div class="flex items-center justify-between">
+                                    <button id="prev-page" class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <i class="fas fa-chevron-left mr-1"></i>Previous
+                                    </button>
+                                    <span id="page-info" class="text-sm text-gray-600"></span>
+                                    <button id="next-page" class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        Next<i class="fas fa-chevron-right ml-1"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -87,6 +100,9 @@
 <script>
 let searchTimeout;
 let currentSuggestions = [];
+let currentPage = 1;
+let totalPages = 1;
+let currentQuery = '';
 
 function searchExample(query) {
     document.querySelector('input[name="q"]').value = query;
@@ -96,6 +112,8 @@ function searchExample(query) {
 // Search suggestions functionality
 document.getElementById('search-input').addEventListener('input', function(e) {
     const query = e.target.value.trim();
+    currentQuery = query;
+    currentPage = 1; // Reset to first page for new query
     
     // Clear previous timeout
     if (searchTimeout) {
@@ -110,17 +128,20 @@ document.getElementById('search-input').addEventListener('input', function(e) {
     
     // Debounce the search
     searchTimeout = setTimeout(() => {
-        fetchSuggestions(query);
+        fetchSuggestions(query, currentPage);
     }, 300);
 });
 
 // Fetch suggestions from web route
-function fetchSuggestions(query) {
-    fetch(`{{ route('search.suggestions') }}?q=${encodeURIComponent(query)}`)
+function fetchSuggestions(query, page = 1) {
+    const url = `{{ route('search.suggestions') }}?q=${encodeURIComponent(query)}&page=${page}&per_page=8`;
+    
+    fetch(url)
         .then(response => response.json())
         .then(data => {
+            console.log('Suggestions response:', data); // Debug log
             if (data.success && data.data && data.data.length > 0) {
-                showSuggestions(data.data);
+                showSuggestions(data.data, data.meta || {});
             } else {
                 hideSuggestions();
             }
@@ -132,11 +153,14 @@ function fetchSuggestions(query) {
 }
 
 // Show suggestions dropdown
-function showSuggestions(suggestions) {
+function showSuggestions(suggestions, meta = {}) {
     const dropdown = document.getElementById('suggestions-dropdown');
     const list = document.getElementById('suggestions-list');
+    const pagination = document.getElementById('suggestions-pagination');
     
     currentSuggestions = suggestions;
+    currentPage = meta.current_page || 1;
+    totalPages = meta.last_page || 1;
     
     // Clear previous suggestions
     list.innerHTML = '';
@@ -145,26 +169,61 @@ function showSuggestions(suggestions) {
     suggestions.forEach((suggestion, index) => {
         const item = document.createElement('div');
         item.className = 'px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0';
+        
+        // Determine country flag and name
+        const countryFlag = suggestion.country === 'sg' ? '🇸🇬' : '🇲🇽';
+        const countryName = suggestion.country === 'sg' ? 'Singapore' : 'Mexico';
+        
         item.innerHTML = `
             <div class="flex items-center justify-between">
-                <div>
-                    <div class="font-medium text-gray-900">${suggestion.name}</div>
-                    <div class="text-sm text-gray-500">${suggestion.country_name || suggestion.country}</div>
+                <div class="flex-1">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-lg">${countryFlag}</span>
+                        <div>
+                            <div class="font-medium text-gray-900 hover:text-blue-600 transition-colors" onclick="selectSuggestion('${suggestion.slug}')">
+                                ${suggestion.name}
+                            </div>
+                            <div class="text-sm text-gray-500">${countryName}</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="text-sm text-gray-400">
-                    ${suggestion.registration_number || ''}
+                <div class="flex items-center space-x-2">
+                    ${suggestion.registration_number ? `<div class="text-sm text-gray-400">${suggestion.registration_number}</div>` : ''}
+                    <button onclick="addToCartFromSuggestion(${suggestion.id}, '${suggestion.country}')" 
+                            class="px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-plus mr-1"></i>Add to Cart
+                    </button>
                 </div>
             </div>
         `;
         
-        item.addEventListener('click', () => {
-            selectSuggestion(suggestion);
+        // Add click handler for the entire row
+        item.addEventListener('click', (e) => {
+            // Don't trigger if clicking on the add to cart button
+            if (!e.target.closest('button')) {
+                selectSuggestion(suggestion.slug);
+            }
         });
         
         list.appendChild(item);
     });
     
+    // Show/hide pagination
+    if (totalPages > 1) {
+        updatePaginationInfo();
+        pagination.classList.remove('hidden');
+    } else {
+        pagination.classList.add('hidden');
+    }
+    
     dropdown.classList.remove('hidden');
+}
+
+// Update pagination info
+function updatePaginationInfo() {
+    document.getElementById('page-info').textContent = `Page ${currentPage} of ${totalPages}`;
+    document.getElementById('prev-page').disabled = currentPage <= 1;
+    document.getElementById('next-page').disabled = currentPage >= totalPages;
 }
 
 // Hide suggestions dropdown
@@ -172,16 +231,67 @@ function hideSuggestions() {
     const dropdown = document.getElementById('suggestions-dropdown');
     dropdown.classList.add('hidden');
     currentSuggestions = [];
+    currentPage = 1;
+    totalPages = 1;
 }
 
 // Select a suggestion
-function selectSuggestion(suggestion) {
-    document.getElementById('search-input').value = suggestion.name;
-    hideSuggestions();
-    
-    // Submit the form
-    document.querySelector('form').submit();
+function selectSuggestion(slug) {
+    // Navigate to company page
+    window.location.href = `/company/${slug}`;
 }
+
+// Add to cart from suggestion
+function addToCartFromSuggestion(companyId, country) {
+    // For suggestions, we'll add the first available report
+    // In a real scenario, you might want to show a modal to select which report
+    const reportId = 1; // Default report ID
+    
+    fetch('/cart/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': window.csrfToken
+        },
+        body: JSON.stringify({
+            company_id: companyId,
+            report_id: reportId,
+            country: country,
+            quantity: 1
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update cart count
+            document.getElementById('cart-count').textContent = data.cartCount;
+            
+            // Show success message
+            showNotification('Report added to cart!', 'success');
+        } else {
+            showNotification('Failed to add to cart', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error adding to cart:', error);
+        showNotification('Error adding to cart', 'error');
+    });
+}
+
+// Pagination event handlers
+document.getElementById('prev-page').addEventListener('click', function() {
+    if (currentPage > 1) {
+        currentPage--;
+        fetchSuggestions(currentQuery, currentPage);
+    }
+});
+
+document.getElementById('next-page').addEventListener('click', function() {
+    if (currentPage < totalPages) {
+        currentPage++;
+        fetchSuggestions(currentQuery, currentPage);
+    }
+});
 
 // Hide suggestions when clicking outside
 document.addEventListener('click', function(e) {
@@ -222,7 +332,8 @@ document.getElementById('search-input').addEventListener('keydown', function(e) 
     } else if (e.key === 'Enter') {
         e.preventDefault();
         if (currentIndex >= 0) {
-            selectSuggestion(currentSuggestions[currentIndex]);
+            const suggestion = currentSuggestions[currentIndex];
+            selectSuggestion(suggestion.slug);
         }
     } else if (e.key === 'Escape') {
         hideSuggestions();

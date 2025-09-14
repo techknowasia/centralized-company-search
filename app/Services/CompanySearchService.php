@@ -70,8 +70,16 @@ class CompanySearchService
                 $mxSuggestions = $this->getMexicoSuggestions($query, $limit);
                 $results = $results->merge($mxSuggestions);
 
-                // Limit and sort results
-                return $results->take($limit)->sortBy('name');
+                // Sort by relevance and limit results
+                return $results->sortByDesc(function ($company) use ($query) {
+                    $name = strtolower($company->name);
+                    $searchQuery = strtolower($query);
+                    
+                    if ($name === $searchQuery) return 100;
+                    if (str_starts_with($name, $searchQuery)) return 90;
+                    if (str_contains($name, $searchQuery)) return 80;
+                    return 70;
+                })->take($limit * 2); // Get more for pagination
 
             } catch (\Exception $e) {
                 \Log::error('Suggestions error: ' . $e->getMessage());
@@ -203,14 +211,12 @@ class CompanySearchService
                 ->where('id', $companyId)
                 ->first();
 
-                // dd($company);
-            
             if (!$company) {
                 return collect();
             }
 
             // Get reports available for this state
-            $reports = DB::connection('companies_house_mx')
+            return DB::connection('companies_house_mx')
                 ->table('report_state')
                 ->join('reports', 'report_state.report_id', '=', 'reports.id')
                 ->select('reports.*', 'report_state.amount')
@@ -218,8 +224,6 @@ class CompanySearchService
                 ->where('reports.status', 1)
                 ->orderBy('reports.order')
                 ->get();
-                return $reports;
-                // dd($reports);
         } catch (\Exception $e) {
             \Log::error('Mexico reports error: ' . $e->getMessage());
             return collect();

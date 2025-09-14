@@ -61,20 +61,39 @@ class SearchController extends Controller
     public function suggestions(Request $request): JsonResponse
     {
         $query = $request->get('q', '');
+        $page = $request->get('page', 1);
+        $perPage = $request->get('per_page', 8);
         
         if (strlen($query) < 2) {
             return response()->json([
                 'success' => true,
-                'data' => []
+                'data' => [],
+                'meta' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $perPage,
+                    'total' => 0
+                ]
             ]);
         }
 
         try {
-            $suggestions = $this->searchService->getSuggestions($query, 10);
+            $suggestions = $this->searchService->getSuggestions($query, $perPage * 3); // Get more for pagination
+            
+            // Manual pagination
+            $total = $suggestions->count();
+            $lastPage = ceil($total / $perPage);
+            $paginatedSuggestions = $suggestions->forPage($page, $perPage);
             
             return response()->json([
                 'success' => true,
-                'data' => $suggestions->toArray()
+                'data' => $paginatedSuggestions->toArray(),
+                'meta' => [
+                    'current_page' => (int) $page,
+                    'last_page' => $lastPage,
+                    'per_page' => $perPage,
+                    'total' => $total
+                ]
             ]);
         } catch (\Exception $e) {
             \Log::error('Suggestions error: ' . $e->getMessage());

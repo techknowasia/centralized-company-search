@@ -15,7 +15,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <!-- Logo -->
-                <div class="flex items-center">
+                <a href="{{ route('home') }}" class="flex items-center">
                     <div class="flex-shrink-0">
                         <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
                             <span class="text-white font-bold text-sm">H</span>
@@ -24,7 +24,7 @@
                     <div class="ml-3">
                         <h1 class="text-xl font-bold text-gray-900">Companies House</h1>
                     </div>
-                </div>
+                </a>
 
                 <!-- Navigation -->
                 <nav class="hidden md:flex space-x-8">
@@ -53,8 +53,8 @@
                         <i class="fas fa-shopping-cart text-xl"></i>
                         <span id="cart-count" class="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">{{ app(\App\Services\CartService::class)->getCartCount() }}</span>
                     </a>
-                    <a href="#" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">Login</a>
-                    <a href="#" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">Register</a>
+                    {{-- <a href="#" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">Login</a>
+                    <a href="#" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">Register</a> --}}
                 </div>
             </div>
         </div>
