@@ -3,13 +3,13 @@
 @section('title', 'Search Companies')
 
 @section('content')
-<div class="min-h-screen bg-gray-100">
+<div class="bg-gray-100">
     <!-- Background Pattern -->
     <div class="absolute opacity-10">
         <div class="absolute inset-0" style="background-image: radial-gradient(circle at 25px 25px, rgba(255,255,255,0.2) 2px, transparent 0), radial-gradient(circle at 75px 75px, rgba(255,255,255,0.2) 2px, transparent 0); background-size: 100px 100px;"></div>
     </div>
 
-    <div class="relative z-10 flex items-center justify-center min-h-screen px-4">
+    <div class="relative z-10 flex justify-center py-20 px-4">
         <div class="w-full max-w-4xl">
             <!-- Instructions -->
             <div class="text-center mb-8">
