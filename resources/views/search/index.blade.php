@@ -53,13 +53,13 @@
                             <!-- Pagination for suggestions -->
                             <div id="suggestions-pagination" class="border-t border-gray-200 p-3 hidden">
                                 <div class="flex items-center justify-between">
-                                    <button id="prev-page" class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <div id="prev-page" class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled cursor-pointer">
                                         <i class="fas fa-chevron-left mr-1"></i>Previous
-                                    </button>
+                                    </div>
                                     <span id="page-info" class="text-sm text-gray-600"></span>
-                                    <button id="next-page" class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <div id="next-page" class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled cursor-pointer">
                                         Next<i class="fas fa-chevron-right ml-1"></i>
-                                    </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -188,10 +188,10 @@ function showSuggestions(suggestions, meta = {}) {
                 </div>
                 <div class="flex items-center space-x-2">
                     ${suggestion.registration_number ? `<div class="text-sm text-gray-400">${suggestion.registration_number}</div>` : ''}
-                    <button onclick="addToCartFromSuggestion(${suggestion.id}, '${suggestion.country}')" 
+                    <div onclick="selectSuggestion(${suggestion.slug})" 
                             class="px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors">
-                        <i class="fas fa-plus mr-1"></i>Add to Cart
-                    </button>
+                        <i class="fas fa-eye mr-1"></i>View Details
+                    </div>
                 </div>
             </div>
         `;
