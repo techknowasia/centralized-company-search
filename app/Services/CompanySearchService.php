@@ -14,342 +14,215 @@ class CompanySearchService
     protected CompanyRepositorySG $sgRepository;
     protected CompanyRepositoryMX $mxRepository;
 
-    public function __construct(
-        CompanyRepositorySG $sgRepository,
-        CompanyRepositoryMX $mxRepository
-    ) {
+    public function __construct(CompanyRepositorySG $sgRepository, CompanyRepositoryMX $mxRepository)
+    {
         $this->sgRepository = $sgRepository;
         $this->mxRepository = $mxRepository;
     }
 
-    /**
-     * Fast unified search across all databases
-     * Optimized for partial matching on millions of records
-     */
-    public function searchAll(string $query, ?string $country = null, int $limit = 10): Collection
+    public function searchAll(string $query, ?string $country = null, int $limit = 50): Collection
     {
-        // Cache key for search results
-        $cacheKey = "search_companies:" . md5($query . $country . $limit);
-        
-        return Cache::remember($cacheKey, 300, function () use ($query, $country, $limit) {
-            $results = collect();
+        $results = collect();
 
-            // Search Singapore companies
+        try {
+            // Search Singapore database
             if (!$country || $country === 'sg') {
                 $sgResults = $this->searchSingapore($query, $limit);
                 $results = $results->merge($sgResults);
             }
 
-            // Search Mexico companies
+            // Search Mexico database
             if (!$country || $country === 'mx') {
                 $mxResults = $this->searchMexico($query, $limit);
                 $results = $results->merge($mxResults);
             }
 
-            // Sort by relevance and limit results
-            return $this->sortByRelevance($results, $query)->take($limit);
+            // Sort by relevance (exact matches first, then partial matches)
+            return $results->sortByDesc(function ($company) use ($query) {
+                $name = strtolower($company->name);
+                $searchQuery = strtolower($query);
+                
+                if ($name === $searchQuery) return 100;
+                if (str_starts_with($name, $searchQuery)) return 90;
+                if (str_contains($name, $searchQuery)) return 80;
+                return 70;
+            });
+
+        } catch (\Exception $e) {
+            \Log::error('Search error: ' . $e->getMessage());
+            return collect();
+        }
+    }
+
+    public function getSuggestions(string $query, int $limit = 10): Collection
+    {
+        $cacheKey = "suggestions_{$query}_{$limit}";
+        
+        return Cache::remember($cacheKey, 300, function () use ($query, $limit) {
+            $results = collect();
+
+            try {
+                // Get suggestions from Singapore
+                $sgSuggestions = $this->getSingaporeSuggestions($query, $limit);
+                $results = $results->merge($sgSuggestions);
+
+                // Get suggestions from Mexico
+                $mxSuggestions = $this->getMexicoSuggestions($query, $limit);
+                $results = $results->merge($mxSuggestions);
+
+                // Limit and sort results
+                return $results->take($limit)->sortBy('name');
+
+            } catch (\Exception $e) {
+                \Log::error('Suggestions error: ' . $e->getMessage());
+                return collect();
+            }
         });
     }
 
-    /**
-     * Optimized Singapore search with partial matching
-     */
+    public function getCompanyReports(string $country, int $companyId): Collection
+    {
+        try {
+            if ($country === 'sg') {
+                return $this->getSingaporeReports($companyId);
+            } elseif ($country === 'mx') {
+                return $this->getMexicoReports($companyId);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Get reports error: ' . $e->getMessage());
+        }
+
+        return collect();
+    }
+
     private function searchSingapore(string $query, int $limit): Collection
     {
         try {
-            // Use raw SQL for better performance on large datasets
-            $sql = "
-                SELECT 
-                    id, name, slug, registration_number, address,
-                    'sg' as country, 'Singapore' as country_name,
-                    CASE 
-                        WHEN name = ? THEN 100
-                        WHEN name LIKE ? THEN 90
-                        WHEN name LIKE ? THEN 80
-                        WHEN former_names LIKE ? THEN 70
-                        WHEN registration_number LIKE ? THEN 60
-                        ELSE 50
-                    END as relevance_score
-                FROM companies 
-                WHERE 
-                    name LIKE ? 
-                    OR former_names LIKE ? 
-                    OR registration_number LIKE ?
-                ORDER BY relevance_score DESC, name ASC
-                LIMIT ?
-            ";
-
-            $exactMatch = $query;
-            $startsWith = $query . '%';
-            $contains = '%' . $query . '%';
-            $regNumber = '%' . $query . '%';
-
             $results = DB::connection('companies_house_sg')
-                ->select($sql, [
-                    $exactMatch, $startsWith, $contains, $contains, $regNumber,
-                    $contains, $contains, $regNumber, $limit
-                ]);
+                ->table('companies')
+                ->where('name', 'LIKE', "%{$query}%")
+                ->orWhere('registration_number', 'LIKE', "%{$query}%")
+                ->limit($limit)
+                ->get();
 
-            return collect($results)->map(function ($item) {
-                return (object) [
-                    'id' => $item->id,
-                    'name' => $item->name,
-                    'slug' => $item->slug ?? null,
-                    'registration_number' => $item->registration_number ?? null,
-                    'address' => $item->address ?? null,
-                    'country' => $item->country,
-                    'country_name' => $item->country_name,
-                    'relevance_score' => $item->relevance_score
-                ];
+            return $results->map(function ($company) {
+                $company->country = 'sg';
+                $company->country_name = 'Singapore';
+                return $company;
             });
-
         } catch (\Exception $e) {
-            \Log::error('Singapore search failed: ' . $e->getMessage());
+            \Log::error('Singapore search error: ' . $e->getMessage());
             return collect();
         }
     }
 
-    /**
-     * Optimized Mexico search with partial matching
-     */
     private function searchMexico(string $query, int $limit): Collection
     {
         try {
-            // Use raw SQL with JOIN for better performance
-            $sql = "
-                SELECT 
-                    c.id, c.name, c.slug, c.brand_name, c.address,
-                    s.name as state_name,
-                    'mx' as country, 'Mexico' as country_name,
-                    CASE 
-                        WHEN c.name = ? THEN 100
-                        WHEN c.name LIKE ? THEN 90
-                        WHEN c.name LIKE ? THEN 80
-                        WHEN c.brand_name LIKE ? THEN 70
-                        ELSE 50
-                    END as relevance_score
-                FROM companies c
-                LEFT JOIN states s ON c.state_id = s.id
-                WHERE 
-                    c.name LIKE ? 
-                    OR c.brand_name LIKE ? 
-                    OR c.slug LIKE ?
-                ORDER BY relevance_score DESC, c.name ASC
-                LIMIT ?
-            ";
-
-            $exactMatch = $query;
-            $startsWith = $query . '%';
-            $contains = '%' . $query . '%';
-
             $results = DB::connection('companies_house_mx')
-                ->select($sql, [
-                    $exactMatch, $startsWith, $contains, $contains,
-                    $contains, $contains, $contains, $limit
-                ]);
+                ->table('companies')
+                ->leftJoin('states', 'companies.state_id', '=', 'states.id')
+                ->select('companies.*', 'states.name as state_name')
+                ->where('companies.name', 'LIKE', "%{$query}%")
+                ->limit($limit)
+                ->get();
 
-            return collect($results)->map(function ($item) {
-                return (object) [
-                    'id' => $item->id,
-                    'name' => $item->name,
-                    'slug' => $item->slug ?? null,
-                    'brand_name' => $item->brand_name ?? null,
-                    'address' => $item->address ?? null,
-                    'state_name' => $item->state_name ?? null,
-                    'country' => $item->country,
-                    'country_name' => $item->country_name,
-                    'relevance_score' => $item->relevance_score
-                ];
+            return $results->map(function ($company) {
+                $company->country = 'mx';
+                $company->country_name = 'Mexico';
+                return $company;
             });
-
         } catch (\Exception $e) {
-            \Log::error('Mexico search failed: ' . $e->getMessage());
+            \Log::error('Mexico search error: ' . $e->getMessage());
             return collect();
         }
     }
 
-    /**
-     * Sort results by relevance score
-     */
-    private function sortByRelevance(Collection $results, string $query): Collection
-    {
-        return $results->sortByDesc('relevance_score');
-    }
-
-    /**
-     * Get search suggestions (faster, limited results)
-     */
-    public function getSuggestions(string $query, int $limit = 5): Collection
-    {
-        // Use a shorter cache time for suggestions
-        $cacheKey = "search_suggestions:" . md5($query . $limit);
-        
-        return Cache::remember($cacheKey, 60, function () use ($query, $limit) {
-            $results = collect();
-
-            // Get suggestions from both countries
-            $sgSuggestions = $this->getSingaporeSuggestions($query, $limit);
-            $mxSuggestions = $this->getMexicoSuggestions($query, $limit);
-
-            $results = $results->merge($sgSuggestions)->merge($mxSuggestions);
-
-            return $this->sortByRelevance($results, $query)->take($limit);
-        });
-    }
-
-    /**
-     * Fast suggestions for Singapore
-     */
     private function getSingaporeSuggestions(string $query, int $limit): Collection
     {
         try {
-            $sql = "
-                SELECT 
-                    id, name, slug, registration_number,
-                    'sg' as country, 'Singapore' as country_name,
-                    CASE 
-                        WHEN name LIKE ? THEN 100
-                        WHEN name LIKE ? THEN 80
-                        ELSE 50
-                    END as relevance_score
-                FROM companies 
-                WHERE name LIKE ? OR registration_number LIKE ?
-                ORDER BY relevance_score DESC, name ASC
-                LIMIT ?
-            ";
-
-            $startsWith = $query . '%';
-            $contains = '%' . $query . '%';
-
             $results = DB::connection('companies_house_sg')
-                ->select($sql, [$startsWith, $contains, $contains, $contains, $limit]);
+                ->table('companies')
+                ->where('name', 'LIKE', "%{$query}%")
+                ->limit($limit)
+                ->get();
 
-            return collect($results)->map(function ($item) {
-                return (object) [
-                    'id' => $item->id,
-                    'name' => $item->name,
-                    'slug' => $item->slug ?? null,
-                    'registration_number' => $item->registration_number ?? null,
-                    'country' => $item->country,
-                    'country_name' => $item->country_name,
-                    'relevance_score' => $item->relevance_score
-                ];
+            return $results->map(function ($company) {
+                $company->country = 'sg';
+                $company->country_name = 'Singapore';
+                return $company;
             });
-
         } catch (\Exception $e) {
-            \Log::error('Singapore suggestions failed: ' . $e->getMessage());
+            \Log::error('Singapore suggestions error: ' . $e->getMessage());
             return collect();
         }
     }
 
-    /**
-     * Fast suggestions for Mexico
-     */
     private function getMexicoSuggestions(string $query, int $limit): Collection
     {
         try {
-            $sql = "
-                SELECT 
-                    c.id, c.name, c.slug, c.brand_name,
-                    s.name as state_name,
-                    'mx' as country, 'Mexico' as country_name,
-                    CASE 
-                        WHEN c.name LIKE ? THEN 100
-                        WHEN c.name LIKE ? THEN 80
-                        ELSE 50
-                    END as relevance_score
-                FROM companies c
-                LEFT JOIN states s ON c.state_id = s.id
-                WHERE c.name LIKE ? OR c.brand_name LIKE ?
-                ORDER BY relevance_score DESC, c.name ASC
-                LIMIT ?
-            ";
-
-            $startsWith = $query . '%';
-            $contains = '%' . $query . '%';
-
             $results = DB::connection('companies_house_mx')
-                ->select($sql, [$startsWith, $contains, $contains, $contains, $limit]);
+                ->table('companies')
+                ->leftJoin('states', 'companies.state_id', '=', 'states.id')
+                ->select('companies.*', 'states.name as state_name')
+                ->where('companies.name', 'LIKE', "%{$query}%")
+                ->limit($limit)
+                ->get();
 
-            return collect($results)->map(function ($item) {
-                return (object) [
-                    'id' => $item->id,
-                    'name' => $item->name,
-                    'slug' => $item->slug ?? null,
-                    'brand_name' => $item->brand_name ?? null,
-                    'state_name' => $item->state_name ?? null,
-                    'country' => $item->country,
-                    'country_name' => $item->country_name,
-                    'relevance_score' => $item->relevance_score
-                ];
+            return $results->map(function ($company) {
+                $company->country = 'mx';
+                $company->country_name = 'Mexico';
+                return $company;
             });
-
         } catch (\Exception $e) {
-            \Log::error('Mexico suggestions failed: ' . $e->getMessage());
+            \Log::error('Mexico suggestions error: ' . $e->getMessage());
             return collect();
         }
     }
 
-    /**
-     * Get company details with reports
-     */
-    public function getCompanyDetails(string $country, int $id): array
-    {
-        $company = match ($country) {
-            'sg' => $this->sgRepository->findDetails($id),
-            'mx' => $this->mxRepository->findDetails($id),
-            default => throw new \InvalidArgumentException("Invalid country: {$country}")
-        };
-
-        $reports = $this->getCompanyReports($country, $id);
-
-        return [
-            'company' => $company,
-            'reports' => $reports,
-            'country' => $country
-        ];
-    }
-
-    /**
-     * Get company reports
-     */
-    public function getCompanyReports(string $country, int $companyId): Collection
-    {
-        return match ($country) {
-            'sg' => $this->sgRepository->getReports($companyId),
-            'mx' => $this->mxRepository->getReports($companyId),
-            default => throw new \InvalidArgumentException("Invalid country: {$country}")
-        };
-    }
-
-    /**
-     * Clear search cache
-     */
-    public function clearSearchCache(): void
-    {
-        Cache::flush();
-    }
-
-    /**
-     * Get search statistics
-     */
-    public function getSearchStats(): array
+    private function getSingaporeReports(int $companyId): Collection
     {
         try {
-            $sgCount = DB::connection('companies_house_sg')->table('companies')->count();
-            $mxCount = DB::connection('companies_house_mx')->table('companies')->count();
-            
-            return [
-                'singapore_companies' => $sgCount,
-                'mexico_companies' => $mxCount,
-                'total_companies' => $sgCount + $mxCount,
-                'cache_status' => 'enabled'
-            ];
+            return DB::connection('companies_house_sg')
+                ->table('reports')
+                ->where('is_active', 1)
+                ->orderBy('order')
+                ->get();
         } catch (\Exception $e) {
-            return [
-                'error' => 'Unable to fetch statistics',
-                'message' => $e->getMessage()
-            ];
+            \Log::error('Singapore reports error: ' . $e->getMessage());
+            return collect();
+        }
+    }
+
+    private function getMexicoReports(int $companyId): Collection
+    {
+        try {
+            // Get company's state_id
+            $company = DB::connection('companies_house_mx')
+                ->table('companies')
+                ->where('id', $companyId)
+                ->first();
+
+                // dd($company);
+            
+            if (!$company) {
+                return collect();
+            }
+
+            // Get reports available for this state
+            $reports = DB::connection('companies_house_mx')
+                ->table('report_state')
+                ->join('reports', 'report_state.report_id', '=', 'reports.id')
+                ->select('reports.*', 'report_state.amount')
+                ->where('report_state.state_id', $company->state_id)
+                ->where('reports.status', 1)
+                ->orderBy('reports.order')
+                ->get();
+                return $reports;
+                // dd($reports);
+        } catch (\Exception $e) {
+            \Log::error('Mexico reports error: ' . $e->getMessage());
+            return collect();
         }
     }
 }
