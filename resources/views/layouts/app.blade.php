@@ -156,10 +156,14 @@
                     // Update cart count
                     document.getElementById('cart-count').textContent = data.cartCount;
                     
-                    // Show success message
-                    showNotification('Report added to cart!', 'success');
+                    // Show appropriate message based on whether it's a duplicate
+                    if (data.isDuplicate) {
+                        showNotification(data.message, 'warning');
+                    } else {
+                        showNotification(data.message, 'success');
+                    }
                 } else {
-                    showNotification('Failed to add to cart', 'error');
+                    showNotification(data.message || 'Failed to add to cart', 'error');
                 }
             })
             .catch(error => {
@@ -173,7 +177,8 @@
             const notification = document.createElement('div');
             notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
                 type === 'success' ? 'bg-green-500' : 
-                type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+                type === 'error' ? 'bg-red-500' : 
+                type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
             } text-white`;
             notification.textContent = message;
             

@@ -38,6 +38,33 @@ class CartController extends Controller
         ]);
 
         try {
+            // Check if the report is already in cart before adding
+            $isAlreadyInCart = $this->cartService->isReportInCart(
+                $request->company_id,
+                $request->report_id,
+                $request->country
+            );
+
+            if ($isAlreadyInCart) {
+                $duplicateInfo = $this->cartService->getDuplicateReportInfo(
+                    $request->company_id,
+                    $request->report_id,
+                    $request->country
+                );
+
+                $message = $duplicateInfo 
+                    ? "This report ({$duplicateInfo['report_name']}) for {$duplicateInfo['company_name']} is already in your cart with quantity {$duplicateInfo['quantity']}. The quantity has been updated."
+                    : "This report is already in your cart. The quantity has been updated.";
+
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                    'isDuplicate' => true,
+                    'cartCount' => $this->cartService->getCartCount(),
+                    'cartTotal' => $this->cartService->getTotal()
+                ]);
+            }
+
             $cartItem = $this->cartService->addToCart(
                 $request->company_id,
                 $request->report_id,
@@ -47,8 +74,9 @@ class CartController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Report added to cart',
+                'message' => 'Report added to cart successfully',
                 'cartItem' => $cartItem,
+                'isDuplicate' => false,
                 'cartCount' => $this->cartService->getCartCount(),
                 'cartTotal' => $this->cartService->getTotal()
             ]);

@@ -51,15 +51,15 @@
                                         <div class="flex items-center space-x-4">
                                             <!-- Quantity -->
                                             <div class="flex items-center space-x-2">
-                                                <button onclick="updateQuantity('{{ $item['id'] }}', {{ $item['quantity'] - 1 }})" 
+                                                {{-- <button onclick="updateQuantity('{{ $item['id'] }}', {{ $item['quantity'] - 1 }})" 
                                                         class="w-8 h-8 bg-gray-200 text-gray-600 rounded-full hover:bg-gray-300 transition-colors">
                                                     <i class="fas fa-minus text-xs"></i>
-                                                </button>
+                                                </button> --}}
                                                 <span class="w-8 text-center font-medium">{{ $item['quantity'] }}</span>
-                                                <button onclick="updateQuantity('{{ $item['id'] }}', {{ $item['quantity'] + 1 }})" 
+                                                {{-- <button onclick="updateQuantity('{{ $item['id'] }}', {{ $item['quantity'] + 1 }})" 
                                                         class="w-8 h-8 bg-gray-200 text-gray-600 rounded-full hover:bg-gray-300 transition-colors">
                                                     <i class="fas fa-plus text-xs"></i>
-                                                </button>
+                                                </button> --}}
                                             </div>
                                             
                                             <!-- Price -->

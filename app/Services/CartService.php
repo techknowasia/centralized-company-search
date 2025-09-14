@@ -28,34 +28,60 @@ class CartService
         $existingItem = $cartItems->firstWhere('id', $cartItemId);
         
         if ($existingItem) {
-            // Update quantity
-            $existingItem['quantity'] += $quantity;
-            $cartItems = $cartItems->map(function ($item) use ($cartItemId, $quantity) {
-                if ($item['id'] === $cartItemId) {
-                    $item['quantity'] += $quantity;
-                }
-                return $item;
-            });
-        } else {
-            // Add new item
-            $cartItem = [
-                'id' => $cartItemId,
-                'company_id' => $companyId,
-                'report_id' => $reportId,
-                'country' => $country,
-                'quantity' => $quantity,
-                'company_name' => $company->name,
-                'report_name' => $report->name,
-                'price' => $this->getReportPrice($reportId, $country, $companyId),
-                'added_at' => now()->toISOString()
-            ];
-            
-            $cartItems->push($cartItem);
+            // Throw exception to prevent duplicate addition
+            throw new \Exception('This report is already in your cart');
         }
 
+        // Add new item
+        $cartItem = [
+            'id' => $cartItemId,
+            'company_id' => $companyId,
+            'report_id' => $reportId,
+            'country' => $country,
+            'quantity' => $quantity,
+            'company_name' => $company->name,
+            'report_name' => $report->name,
+            'price' => $this->getReportPrice($reportId, $country, $companyId),
+            'added_at' => now()->toISOString()
+        ];
+        
+        $cartItems->push($cartItem);
         $this->saveCartItems($cartItems);
         
-        return $existingItem ?? $cartItem;
+        return $cartItem;
+    }
+
+    /**
+     * Check if a specific report for a company already exists in the cart
+     */
+    public function isReportInCart(int $companyId, int $reportId, string $country): bool
+    {
+        $cartItems = $this->getCartItems();
+        $cartItemId = $this->generateCartItemId($companyId, $reportId, $country);
+        
+        return $cartItems->contains('id', $cartItemId);
+    }
+
+    /**
+     * Get duplicate report information for better error messages
+     */
+    public function getDuplicateReportInfo(int $companyId, int $reportId, string $country): ?array
+    {
+        $cartItems = $this->getCartItems();
+        $cartItemId = $this->generateCartItemId($companyId, $reportId, $country);
+        
+        $existingItem = $cartItems->firstWhere('id', $cartItemId);
+        
+        if ($existingItem) {
+            return [
+                'company_name' => $existingItem['company_name'],
+                'report_name' => $existingItem['report_name'],
+                'country' => $existingItem['country'],
+                'quantity' => $existingItem['quantity']
+            ];
+        }
+        
+        return null;
     }
 
     public function removeFromCart(string $cartItemId): void
@@ -105,6 +131,15 @@ class CartService
 
     private function generateCartItemId(int $companyId, int $reportId, string $country): string
     {
+        // For Mexico, include state_id in the cart item ID to prevent duplicates
+        // across different states for the same company and report
+        if ($country === 'mx') {
+            $company = $this->getCompanyDetails($companyId, $country);
+            $stateId = $company ? $company->state_id : 0;
+            return md5("{$companyId}_{$reportId}_{$country}_{$stateId}");
+        }
+        
+        // For Singapore, use the existing logic
         return md5("{$companyId}_{$reportId}_{$country}");
     }
 
