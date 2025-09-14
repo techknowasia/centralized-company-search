@@ -1,0 +1,130 @@
+{
+	"info": {
+		"_postman_id": "cbccfd21-eef4-46c7-951c-4826b4f5e34a",
+		"name": "companies_house_api",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "41731385"
+	},
+	"item": [
+		{
+			"name": "health",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/health/",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"health",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "suggestions",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/search/suggestions/?q=BOX&limit=5",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"search",
+						"suggestions",
+						""
+					],
+					"query": [
+						{
+							"key": "q",
+							"value": "BOX"
+						},
+						{
+							"key": "limit",
+							"value": "5"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "search-companies",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/search/companies/?q=BOX&limit=5",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"search",
+						"companies",
+						""
+					],
+					"query": [
+						{
+							"key": "q",
+							"value": "BOX"
+						},
+						{
+							"key": "limit",
+							"value": "5"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "test-db",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/test/database-connections/",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"test",
+						"database-connections",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "company-details",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/companies/allied-industrial-group-holdings-T18UF1229D",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"companies",
+						"allied-industrial-group-holdings-T18UF1229D"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "baseURL",
+			"value": "",
+			"type": "default"
+		}
+	]
+}
