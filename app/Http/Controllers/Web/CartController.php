@@ -88,6 +88,32 @@ class CartController extends Controller
         }
     }
 
+    public function getCompanyReports(Request $request, int $companyId): JsonResponse
+    {
+        try {
+            $country = $request->query('country');
+            
+            if (!$country) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Country parameter is required'
+                ], 400);
+            }
+            
+            $reports = $this->cartService->getCompanyReports($companyId, $country);
+            
+            return response()->json([
+                'success' => true,
+                'reports' => $reports
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
     public function remove(string $cartItemId): JsonResponse
     {
         $this->cartService->removeFromCart($cartItemId);
