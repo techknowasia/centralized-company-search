@@ -242,39 +242,22 @@ function selectSuggestion(slug) {
 
 // Add to cart from suggestion
 function addToCartFromSuggestion(companyId, country) {
-    // For suggestions, we'll add the first available report
-    // In a real scenario, you might want to show a modal to select which report
-    const reportId = 1; // Default report ID
-    
-    fetch('/cart/add', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': window.csrfToken
-        },
-        body: JSON.stringify({
-            company_id: companyId,
-            report_id: reportId,
-            country: country,
-            quantity: 1
+    // First, get available reports for this company
+    fetch(`/cart/company/${companyId}/reports?country=${country}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.reports && data.reports.length > 0) {
+                // Use the first available report
+                const firstReport = data.reports[0];
+                addToCart(companyId, firstReport.id, country, 1);
+            } else {
+                showNotification('No reports available for this company', 'warning');
+            }
         })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Update cart count
-            document.getElementById('cart-count').textContent = data.cartCount;
-            
-            // Show success message
-            showNotification('Report added to cart!', 'success');
-        } else {
-            showNotification('Failed to add to cart', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error adding to cart:', error);
-        showNotification('Error adding to cart', 'error');
-    });
+        .catch(error => {
+            console.error('Error fetching company reports:', error);
+            showNotification('Error loading company reports', 'error');
+        });
 }
 
 // Pagination event handlers
