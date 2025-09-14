@@ -63,7 +63,7 @@
                                 </div>
 
                                 <div class="flex items-center space-x-3">
-                                    <button onclick="addToCart({{ $company->id }}, 1, '{{ $company->country }}')" 
+                                    <button onclick="addToCartFromResults({{ $company->id }}, '{{ $company->country }}')" 
                                             class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm">
                                         <i class="fas fa-plus mr-1"></i>Add to cart
                                     </button>
@@ -110,4 +110,26 @@
         @endif
     </div>
 </div>
+
+<script>
+// Add to cart from search results
+function addToCartFromResults(companyId, country) {
+    // First, get available reports for this company
+    fetch(`/cart/company/${companyId}/reports?country=${country}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.reports && data.reports.length > 0) {
+                // Use the first available report
+                const firstReport = data.reports[0];
+                addToCart(companyId, firstReport.id, country, 1);
+            } else {
+                showNotification('No reports available for this company', 'warning');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching company reports:', error);
+            showNotification('Error loading company reports', 'error');
+        });
+}
+</script>
 @endsection
