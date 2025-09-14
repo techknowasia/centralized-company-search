@@ -37,9 +37,9 @@ Route::prefix('search')->group(function () {
 // Company routes - SPECIFIC ROUTES FIRST
 Route::prefix('companies')->group(function () {
     Route::get('/', [CompanyController::class, 'index']);
-    Route::get('/suggestions', [SearchController::class, 'getSuggestions']); // Specific route before {id}
-    Route::get('/{id}', [CompanyController::class, 'show']);
-    Route::get('/{id}/reports', [CompanyController::class, 'getReports']);
+    Route::get('/suggestions', [SearchController::class, 'getSuggestions']); // Specific route before {slug}
+    Route::get('/{slug}', [CompanyController::class, 'showBySlug']); // Updated to use slug
+    Route::get('/{slug}/reports', [CompanyController::class, 'getReportsBySlug']); // Updated to use slug
 });
 
 // Country-specific routes
