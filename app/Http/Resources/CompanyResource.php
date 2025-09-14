@@ -17,22 +17,17 @@ class CompanyResource extends JsonResource
             'former_names' => $this->former_names ?? null,
             'brand_name' => $this->brand_name ?? null,
             'address' => $this->address ?? null,
-            'country' => $this->country ?? 'unknown',
-            'country_name' => $this->country_name ?? 'Unknown',
-            'state_name' => $this->state_name ?? null,
-            'state' => $this->when(isset($this->state) && $this->state, function () {
-                return [
-                    'id' => $this->state?->id ?? null,
-                    'name' => $this->state?->name ?? null
-                ];
-            }),
-            // Only include timestamps if they exist (for Eloquent models)
-            'created_at' => $this->when(property_exists($this->resource, 'created_at'), function () {
-                return $this->created_at?->toISOString();
-            }),
-            'updated_at' => $this->when(property_exists($this->resource, 'updated_at'), function () {
-                return $this->updated_at?->toISOString();
-            })
+            'phone' => $this->phone ?? null,
+            'email' => $this->email ?? null,
+            'website' => $this->website ?? null,
+            'country' => $this->country ?? null,
+            'state_id' => $this->state_id ?? null,
+            'created_at' => property_exists($this, 'created_at')
+                ? ($this->created_at instanceof \DateTimeInterface ? $this->created_at->toISOString() : $this->created_at)
+                : null,
+            'updated_at' => property_exists($this, 'updated_at')
+                ? ($this->updated_at instanceof \DateTimeInterface ? $this->updated_at->toISOString() : $this->updated_at)
+                : null,
         ];
     }
 }
