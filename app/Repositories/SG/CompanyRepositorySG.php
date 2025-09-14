@@ -41,4 +41,25 @@ class CompanyRepositorySG implements CompanyRepositoryInterface
     {
         return CompanySG::paginate($perPage, ['*'], 'page', $page);
     }
+
+    public function getSuggestions(string $query, int $limit = 10): Collection
+    {
+        return CompanySG::where('name', 'like', "%{$query}%")
+            ->limit($limit)
+            ->get();
+    }
+
+    public function searchWithCountry(string $query, int $limit = 10): Collection
+    {
+        return CompanySG::where('name', 'like', "%{$query}%")
+            ->orWhere('former_names', 'like', "%{$query}%")
+            ->orWhere('registration_number', 'like', "%{$query}%")
+            ->limit($limit)
+            ->get()
+            ->map(function ($company) {
+                $company->country = 'sg';
+                $company->country_name = 'Singapore';
+                return $company;
+            });
+    }
 }

@@ -54,4 +54,26 @@ class CompanyRepositoryMX implements CompanyRepositoryInterface
     {
         return CompanyMX::with('state')->paginate($perPage, ['*'], 'page', $page);
     }
+
+    public function getSuggestions(string $query, int $limit = 10): Collection
+    {
+        return CompanyMX::where('name', 'like', "%{$query}%")
+            ->limit($limit)
+            ->get();
+    }
+
+    public function searchWithCountry(string $query, int $limit = 10): Collection
+    {
+        return CompanyMX::where('name', 'like', "%{$query}%")
+            ->orWhere('brand_name', 'like', "%{$query}%")
+            ->orWhere('slug', 'like', "%{$query}%")
+            ->with('state')
+            ->limit($limit)
+            ->get()
+            ->map(function ($company) {
+                $company->country = 'mx';
+                $company->country_name = 'Mexico';
+                return $company;
+            });
+    }
 }

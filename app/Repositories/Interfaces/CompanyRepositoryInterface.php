@@ -13,4 +13,8 @@ interface CompanyRepositoryInterface
     public function getReports(int $companyId): \Illuminate\Database\Eloquent\Collection;
     
     public function getAll(int $page = 1, int $perPage = 10): \Illuminate\Contracts\Pagination\LengthAwarePaginator;
+    
+    public function getSuggestions(string $query, int $limit = 10): \Illuminate\Database\Eloquent\Collection;
+    
+    public function searchWithCountry(string $query, int $limit = 10): \Illuminate\Database\Eloquent\Collection;
 }
