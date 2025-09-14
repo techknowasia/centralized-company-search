@@ -84,6 +84,56 @@ class CartService
         return null;
     }
 
+    /**
+     * Get available reports for a company
+     */
+    public function getCompanyReports(int $companyId, string $country): array
+    {
+        $company = $this->getCompanyDetails($companyId, $country);
+        
+        if (!$company) {
+            throw new \Exception('Company not found');
+        }
+
+        if ($country === 'sg') {
+            // Singapore: All reports are available
+            $reports = DB::connection('companies_house_sg')
+                ->table('reports')
+                ->where('is_active', 1)
+                ->orderBy('order')
+                ->get()
+                ->map(function ($report) {
+                    return [
+                        'id' => $report->id,
+                        'name' => $report->name,
+                        'amount' => (float) $report->amount,
+                        'info' => $report->info
+                    ];
+                })
+                ->toArray();
+        } else {
+            // Mexico: Reports based on company's state
+            $reports = DB::connection('companies_house_mx')
+                ->table('report_state')
+                ->join('reports', 'report_state.report_id', '=', 'reports.id')
+                ->where('report_state.state_id', $company->state_id)
+                ->where('reports.status', 1)
+                ->orderBy('reports.order')
+                ->get()
+                ->map(function ($report) {
+                    return [
+                        'id' => $report->report_id,
+                        'name' => $report->name,
+                        'amount' => (float) $report->amount,
+                        'info' => $report->info
+                    ];
+                })
+                ->toArray();
+        }
+
+        return $reports;
+    }
+
     public function removeFromCart(string $cartItemId): void
     {
         $cartItems = $this->getCartItems();
