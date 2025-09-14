@@ -86,8 +86,8 @@
                     <p class="text-gray-600 text-sm mb-3">Try searching for:</p>
                     <div class="flex flex-wrap gap-2">
                         <button onclick="searchExample('tech')" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors">Technology</button>
-                        <button onclick="searchExample('finance')" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors">Finance</button>
-                        <button onclick="searchExample('consulting')" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors">Consulting</button>
+                        <button onclick="searchExample('investment')" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors">Investment</button>
+                        <button onclick="searchExample('capital')" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors">Capital</button>
                         <button onclick="searchExample('trading')" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors">Trading</button>
                     </div>
                 </div>
